@@ -48,7 +48,8 @@
         app:layout_constraintRight_toRightOf="parent"
         android:visibility="gone"
         android:layout_marginRight="8dp"
-        android:src="@drawable/ic_archive"/>
+        android:src="@drawable/ic_archive"
+        app:tint="@color/text_color" />
 
     <TextView
         android:id="@+id/heading"

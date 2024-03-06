@@ -1,5 +1,6 @@
 package com.example.newsapp.ui.fragments
 
+import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
@@ -43,12 +44,22 @@ class BreakingNewsFragment : Fragment() {
     private var pageNum = 1
     private var listOfArticles = mutableListOf<Article>()
 
+
     @Inject
     lateinit var newsRepository: NewsRepository
 
     @Inject
     lateinit var newsAdapter: NewsItemAdapter
 
+    val newsViewModel: NewsViewModel by viewModels {
+        NewsViewModel.provideFactory(newsRepository)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+
+        newsViewModel.getBreakingNews(pageNum)
+    }
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?,
@@ -60,8 +71,19 @@ class BreakingNewsFragment : Fragment() {
         recyclerView.adapter = newsAdapter
         recyclerView.layoutManager = LinearLayoutManager(activity)
 
-        val newsViewModel: NewsViewModel by viewModels {
-            NewsViewModel.provideFactory(newsRepository)
+
+        newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner){
+            for(item in listOfArticles){
+                for(item1 in it){
+                    if(!item.isArchived){
+                        if(item.title == item1.title){
+                            item.isArchived = true
+                        }
+                    }
+                }
+            }
+            newsAdapter.updateList(listOfArticles)
+            newsAdapter.notifyDataSetChanged()
         }
 
 
@@ -69,25 +91,11 @@ class BreakingNewsFragment : Fragment() {
             when (it) {
                 is Resource.Success -> {
                     loadingLyt.root.visibility = View.GONE
-                    val articleList = it.data!!.articles
-                    newsRepository.getAllArticleFromLocalDb().observe(viewLifecycleOwner){
-                        for(article in articleList){
-                            if(!article.isArchived) {
-                                if (it != null) {
-                                    for (saved in it) {
-                                        if (article.title == saved.title) {
-                                            article.isArchived = true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        val oldSize = listOfArticles.size
-                        listOfArticles.addAll(articleList)
-                        newsAdapter.updateList(listOfArticles)
-                        newsAdapter.notifyItemRangeInserted(oldSize,articleList.size)
-                    }
-
+                    var articleList = it.data!!.articles
+                    var oldsize = listOfArticles.size
+                    listOfArticles.addAll(articleList)
+                    newsAdapter.updateList(listOfArticles)
+                    newsAdapter.notifyItemRangeInserted(oldsize,articleList.size)
                     newsAdapter.setContext(context!!)
                 }
                 is Resource.Error -> {
@@ -106,7 +114,6 @@ class BreakingNewsFragment : Fragment() {
             }
 
         })
-        newsViewModel.getBreakingNews(pageNum)
 
         val swipeToDeleteCallBack = object : ItemTouchHelper.Callback() {
             private val mClearPaint = Paint().apply {
@@ -233,4 +240,5 @@ class BreakingNewsFragment : Fragment() {
 
         return binding.root
     }
+
 }
