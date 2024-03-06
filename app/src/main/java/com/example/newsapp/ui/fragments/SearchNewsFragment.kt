@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,6 +26,8 @@ import com.example.newsapp.R
 import com.example.newsapp.api.NewsRepository
 import com.example.newsapp.databinding.FragmentSearchNewsBinding
 import com.example.newsapp.databinding.LayoutLoadingBinding
+import com.example.newsapp.models.Article
+import com.example.newsapp.ui.adapters.AdapterToFragment
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
 import com.example.newsapp.utils.Resource
@@ -42,7 +45,8 @@ class SearchNewsFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var loadingLyt : LayoutLoadingBinding
     private lateinit var inputBox : EditText
-
+    private var pageNum = 1
+    private val articleMainList = mutableListOf<Article>()
     @Inject
     lateinit var newsRepository: NewsRepository
     @Inject
@@ -69,7 +73,6 @@ class SearchNewsFragment : Fragment() {
             when(it){
                 is Resource.Success -> {
                     loadingLyt.root.visibility = View.GONE
-
                     val articleList = it.data!!.articles
                     newsRepository.getAllArticleFromLocalDb().observe(viewLifecycleOwner){
                         for(article in articleList){
@@ -83,7 +86,9 @@ class SearchNewsFragment : Fragment() {
                                 }
                             }
                         }
-                        newsAdapter.updateList(articleList)
+                        articleMainList.addAll(articleList)
+                        newsAdapter.notifyDataSetChanged()
+                        newsAdapter.updateList(articleMainList)
                     }
 
                     newsAdapter.setContext(context!!)
@@ -92,18 +97,28 @@ class SearchNewsFragment : Fragment() {
                     loadingLyt.root.visibility = View.GONE
                 }
                 is Resource.Loading -> {
-                    loadingLyt.root.visibility = View.VISIBLE
+                    if(pageNum < 2)
+                        loadingLyt.root.visibility = View.VISIBLE
                 }
             }
         }
 
+        newsAdapter.settingUpAdapterToFragmentCallBack(object: AdapterToFragment {
+            override fun lastItemReached() {
+                newsViewModel.getNewsFromSearch(inputBox.text.toString(),++pageNum)
+            }
+
+        })
+
         var job : Job ?= null
         inputBox.addTextChangedListener{
+            pageNum = 1
+            articleMainList.clear()
             job?.cancel()
             job = CoroutineScope(Dispatchers.IO).launch {
                 delay(1000)
                 if(inputBox.text.toString().isNotEmpty()) {
-                    newsViewModel.getNewsFromSearch(inputBox.text.toString())
+                    newsViewModel.getNewsFromSearch(inputBox.text.toString(), pageNum)
                 }
             }
         }

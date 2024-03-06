@@ -23,7 +23,7 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
     private lateinit var binding: LayoutNewsItemBinding
     private var list : MutableList<Article> = mutableListOf()
     private var activityContext: Context? = null
-    private lateinit var adapterToFragCallback : AdapterToFragment
+    private var adapterToFragCallback : AdapterToFragment ?= null
 
     private val diffUtil = object : DiffUtil.ItemCallback<Article>() {
         override fun areContentsTheSame(oldItem: Article, newItem: Article):
@@ -55,7 +55,7 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
 
     override fun onBindViewHolder(holder: NewsItemVH, position: Int) {
         if(position == asyncListDiffer.currentList.size-1){
-            adapterToFragCallback.lastItemReached()
+            adapterToFragCallback?.lastItemReached()
         }
         val article = asyncListDiffer.currentList[position]
         val mp = holder.itemView.layoutParams as MarginLayoutParams

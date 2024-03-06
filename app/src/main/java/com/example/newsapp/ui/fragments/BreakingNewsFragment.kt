@@ -83,9 +83,7 @@ class BreakingNewsFragment : Fragment() {
                             }
                         }
                         val oldSize = listOfArticles.size
-                        Log.d("CheckingAditya",listOfArticles.size.toString())
                         listOfArticles.addAll(articleList)
-                        Log.d("CheckingAditya",listOfArticles.size.toString())
                         newsAdapter.updateList(listOfArticles)
                         newsAdapter.notifyItemRangeInserted(oldSize,articleList.size)
                     }
@@ -96,7 +94,9 @@ class BreakingNewsFragment : Fragment() {
                     loadingLyt.root.visibility = View.GONE
                 }
                 is Resource.Loading -> {
-                    loadingLyt.root.visibility = View.VISIBLE
+                    if(pageNum < 2) {
+                        loadingLyt.root.visibility = View.VISIBLE
+                    }
                 }
             }
         }

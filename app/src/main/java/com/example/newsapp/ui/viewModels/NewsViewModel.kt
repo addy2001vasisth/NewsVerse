@@ -44,10 +44,10 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
 
     }
 
-    fun getNewsFromSearch(query: String) = viewModelScope.launch {
+    fun getNewsFromSearch(query: String,pageNum:Int) = viewModelScope.launch {
         newsFromSearchLiveData.postValue(Resource.Loading())
         try {
-            val response = newsRepository.getNewsFromSearch(query)
+            val response = newsRepository.getNewsFromSearch(query,pageNum)
             if (response.isSuccessful && response.body() != null && response.errorBody() == null) {
                 newsFromSearchLiveData.postValue(Resource.Success(response.body()!!))
             } else if (response.errorBody() != null) {

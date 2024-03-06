@@ -8,7 +8,7 @@ class NewsRepository(private val db : AppDatabase) {
 
     suspend fun getBreakingNews(page:Int) = RetrofitClient.getClient().getBreakingNews(page = page)
 
-    suspend fun getNewsFromSearch(query: String) = RetrofitClient.getClient().getSearchNews(query)
+    suspend fun getNewsFromSearch(query: String,page: Int) = RetrofitClient.getClient().getSearchNews(query,page = page)
 
     suspend fun upsertArticle(article: Article) = db.userDao().upsert(article)
 
