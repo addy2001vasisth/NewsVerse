@@ -6,7 +6,7 @@ import com.example.newsapp.models.Article
 
 class NewsRepository(private val db : AppDatabase) {
 
-    suspend fun getBreakingNews() = RetrofitClient.getClient().getBreakingNews()
+    suspend fun getBreakingNews(page:Int) = RetrofitClient.getClient().getBreakingNews(page = page)
 
     suspend fun getNewsFromSearch(query: String) = RetrofitClient.getClient().getSearchNews(query)
 

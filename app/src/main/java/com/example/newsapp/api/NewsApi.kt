@@ -12,7 +12,7 @@ interface NewsApi {
         @Query("country") countryCode: String = "in",
 //        @Query("category") category: String,
         @Query("pageSize") pageSize: Int = 20,
-        @Query("page") page: Int = 1,
+        @Query("page") page: Int,
     ): Response<NewsResponse>
 
     @GET("/v2/everything")

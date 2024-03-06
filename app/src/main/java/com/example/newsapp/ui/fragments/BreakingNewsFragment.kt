@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.TranslateAnimation
+import android.widget.Adapter
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.Fragment
@@ -23,6 +24,8 @@ import com.example.newsapp.R
 import com.example.newsapp.api.NewsRepository
 import com.example.newsapp.databinding.FragmentBreakingNewsFragmentsBinding
 import com.example.newsapp.databinding.LayoutLoadingBinding
+import com.example.newsapp.models.Article
+import com.example.newsapp.ui.adapters.AdapterToFragment
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
 import com.example.newsapp.utils.Resource
@@ -37,6 +40,8 @@ class BreakingNewsFragment : Fragment() {
     private lateinit var binding: FragmentBreakingNewsFragmentsBinding
     private lateinit var recyclerView: RecyclerView
     private lateinit var loadingLyt: LayoutLoadingBinding
+    private var pageNum = 1
+    private var listOfArticles = mutableListOf<Article>()
 
     @Inject
     lateinit var newsRepository: NewsRepository
@@ -77,7 +82,12 @@ class BreakingNewsFragment : Fragment() {
                                 }
                             }
                         }
-                        newsAdapter.updateList(articleList)
+                        val oldSize = listOfArticles.size
+                        Log.d("CheckingAditya",listOfArticles.size.toString())
+                        listOfArticles.addAll(articleList)
+                        Log.d("CheckingAditya",listOfArticles.size.toString())
+                        newsAdapter.updateList(listOfArticles)
+                        newsAdapter.notifyItemRangeInserted(oldSize,articleList.size)
                     }
 
                     newsAdapter.setContext(context!!)
@@ -90,7 +100,13 @@ class BreakingNewsFragment : Fragment() {
                 }
             }
         }
-        newsViewModel.getBreakingNews()
+        newsAdapter.settingUpAdapterToFragmentCallBack(object : AdapterToFragment {
+            override fun lastItemReached() {
+                newsViewModel.getBreakingNews(++pageNum)
+            }
+
+        })
+        newsViewModel.getBreakingNews(pageNum)
 
         val swipeToDeleteCallBack = object : ItemTouchHelper.Callback() {
             private val mClearPaint = Paint().apply {
