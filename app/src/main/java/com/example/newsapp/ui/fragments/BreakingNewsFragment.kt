@@ -18,6 +18,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,8 +33,10 @@ import com.example.newsapp.ui.adapters.AdapterToFragment
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
 import com.example.newsapp.utils.Resource
+import com.example.newsapp.utils.Utils
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import java.lang.Math.abs
 import javax.inject.Inject
 
 
@@ -43,7 +48,7 @@ class BreakingNewsFragment : Fragment() {
     private lateinit var loadingLyt: LayoutLoadingBinding
     private var pageNum = 1
     private var listOfArticles = mutableListOf<Article>()
-
+    private var localDbArrList = mutableListOf<Article>()
 
     @Inject
     lateinit var newsRepository: NewsRepository
@@ -57,9 +62,10 @@ class BreakingNewsFragment : Fragment() {
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-
         newsViewModel.getBreakingNews(pageNum)
+
     }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?,
@@ -67,60 +73,58 @@ class BreakingNewsFragment : Fragment() {
         binding = FragmentBreakingNewsFragmentsBinding.inflate(inflater, container, false)
         recyclerView = binding.recyclerView
         loadingLyt = binding.loadingLyt
-
         recyclerView.adapter = newsAdapter
         recyclerView.layoutManager = LinearLayoutManager(activity)
 
 
-        newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner){
-            for(item in listOfArticles){
-                for(item1 in it){
-                    if(!item.isArchived){
-                        if(item.title == item1.title){
-                            item.isArchived = true
-                        }
-                    }
-                }
-            }
-            newsAdapter.updateList(listOfArticles)
-            newsAdapter.notifyDataSetChanged()
+        newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner) {
+            localDbArrList = it as MutableList<Article>
+
         }
+
+
+        newsAdapter.updateList(listOfArticles)
 
 
         newsViewModel.breakingNewsLiveData.observe(viewLifecycleOwner) {
             when (it) {
                 is Resource.Success -> {
+
                     loadingLyt.root.visibility = View.GONE
                     var articleList = it.data!!.articles
+                    if(articleList.isEmpty()){
+                        newsAdapter.hideOrShowListLoader(true)
+                    }
+
                     var oldsize = listOfArticles.size
                     listOfArticles.addAll(articleList)
                     newsAdapter.updateList(listOfArticles)
                     newsAdapter.notifyItemRangeInserted(oldsize,articleList.size)
                     newsAdapter.setContext(context!!)
+
+
                 }
                 is Resource.Error -> {
                     loadingLyt.root.visibility = View.GONE
                 }
                 is Resource.Loading -> {
-                    if(pageNum < 2) {
+                    if (pageNum < 2) {
                         loadingLyt.root.visibility = View.VISIBLE
                     }
                 }
             }
         }
+
+
         newsAdapter.settingUpAdapterToFragmentCallBack(object : AdapterToFragment {
             override fun lastItemReached() {
                 newsViewModel.getBreakingNews(++pageNum)
             }
 
         })
+        var rightMostCoord = -1;
 
         val swipeToDeleteCallBack = object : ItemTouchHelper.Callback() {
-            private val mClearPaint = Paint().apply {
-                xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-            }
-            private val mBackground: ColorDrawable = ColorDrawable()
-            private val backgroundColor = activity?.getColor(R.color.teal_700)
             private val deleteDrawableIc = ContextCompat.getDrawable(activity!!,
                 R.drawable.ic_archive)
 
@@ -150,23 +154,25 @@ class BreakingNewsFragment : Fragment() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.adapterPosition
                 var article = newsAdapter.getArticle(pos)
-                if(article.isArchived){
-                    Snackbar.make(view!!,"Item is already archived",Snackbar.LENGTH_SHORT).show()
+                if (article.isArchived) {
+                    Snackbar.make(view!!, "Item is already archived", Snackbar.LENGTH_SHORT).show()
                     newsAdapter.deleteArticleFromList(pos)
                     Handler().postDelayed({
-                        newsAdapter.setArticle(pos,article)
-                    },500)
+                        newsAdapter.setArticle(pos, article)
+                    }, 500)
                     return
                 }
                 newsViewModel.upsertArticleToLocalDb(article)
                 article.isArchived = true
                 newsAdapter.deleteArticleFromList(pos)
-
-                Snackbar.make(view!!,"Selected Item has been archived..",Snackbar.LENGTH_SHORT).show()
+                Handler().postDelayed({
+                    newsAdapter.setArticle(pos, article)
+                },1000)
+                    Snackbar.make(view!!, "Selected Item has been archived..", Snackbar.LENGTH_SHORT)
+                    .show()
 
 
             }
-
             override fun onChildDraw(
                 c: Canvas,
                 recyclerView: RecyclerView,
@@ -185,41 +191,28 @@ class BreakingNewsFragment : Fragment() {
                     isCurrentlyActive)
                 val itemView = viewHolder.itemView
                 val itemHeight = itemView.height
-                val isCancelled = dX == 0f && !isCurrentlyActive
-                if (isCancelled) {
 
-                    c.drawRect(itemView.right + dX,
-                        itemView.top.toFloat(),
-                        itemView.right.toFloat(),
-                        itemView.bottom.toFloat(),
-                        mClearPaint)
+                val paint = Paint()
+                paint.color = context!!.getColor(R.color.teal_700)
+                c.drawRoundRect(RectF(itemView.right+dX-100,itemView.top.toFloat(),itemView.right.toFloat(),itemView.bottom.toFloat()),Utils.dipToPixels(activity!!,10f),Utils.dipToPixels(activity!!,10f),paint)
 
-                    super.onChildDraw(c,
-                        recyclerView,
-                        viewHolder,
-                        dX,
-                        dY,
-                        actionState,
-                        isCurrentlyActive)
-                    return
-                }
-                mBackground.color = backgroundColor!!
-                mBackground.setBounds(itemView.right + dX.toInt(),
-                    itemView.top,
-                    itemView.right,
-                    itemView.bottom)
-                mBackground.draw(c)
                 deleteDrawable.setTint(resources.getColor(R.color.white))
 
                 val deleteIconTop: Int = itemView.top + (itemHeight - intrinsicHeight) / 2
                 val deleteIconMargin: Int = (itemHeight - intrinsicHeight) / 2
-                val deleteIconLeft: Int = itemView.right - deleteIconMargin - intrinsicWidth
-                val deleteIconRight = itemView.right - deleteIconMargin
                 val deleteIconBottom: Int = deleteIconTop + intrinsicHeight
-                deleteDrawable.setBounds(deleteIconLeft,
+
+                deleteDrawable.setBounds(if (kotlin.math.abs(dX) < itemView.width / 2.5) {
+                    rightMostCoord = (dX/1.5).toInt()
+                    itemView.right + (dX / 1.5).toInt()
+
+                } else {
+                    itemView.right + rightMostCoord
+                },
                     deleteIconTop,
-                    deleteIconRight,
+                    itemView.right - deleteIconMargin / 2,
                     deleteIconBottom)
+
                 deleteDrawable.draw(c)
 
 
@@ -240,5 +233,11 @@ class BreakingNewsFragment : Fragment() {
 
         return binding.root
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        newsViewModel.breakingNewsLiveData.value = null
+    }
+
 
 }

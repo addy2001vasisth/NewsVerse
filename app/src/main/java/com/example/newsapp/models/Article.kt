@@ -32,8 +32,8 @@ data class Article(
         parcel.readString(),
         parcel.readString(),
         parcel.readString(),
-        parcel.readBoolean()) {
-    }
+        parcel.readInt() == 1)
+
 
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -46,7 +46,7 @@ data class Article(
         parcel.writeString(title?:"")
         parcel.writeString(url?:"")
         parcel.writeString(urlToImage?:"")
-        parcel.writeBoolean(isArchived)
+        parcel.writeInt(if(isArchived)1 else 0)
     }
 
     override fun describeContents(): Int {

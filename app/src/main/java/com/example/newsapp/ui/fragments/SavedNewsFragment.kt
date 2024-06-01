@@ -55,6 +55,7 @@ class SavedNewsFragment : Fragment() {
         newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner){
             it?.let {
                 newsAdapter.updateList(it)
+                newsAdapter.setContext(context!!)
             }
 
         }

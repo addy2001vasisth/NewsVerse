@@ -1,6 +1,7 @@
 package com.example.newsapp.ui.viewModels
 
 import android.util.Log
+import android.widget.MultiAutoCompleteTextView
 import android.widget.Toast
 import androidx.lifecycle.*
 import com.example.newsapp.NewsApplication
@@ -16,13 +17,13 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
     val breakingNewsLiveData : MutableLiveData<Resource<NewsResponse>> = MutableLiveData()
     val newsFromSearchLiveData : MutableLiveData<Resource<NewsResponse>> = MutableLiveData()
     fun getBreakingNews(page : Int) = viewModelScope.launch {
-        breakingNewsLiveData.postValue(Resource.Loading())
+        breakingNewsLiveData.value = (Resource.Loading())
         try {
             val response = newsRepository.getBreakingNews(page)
             if (response.isSuccessful && response.body() != null && response.errorBody() == null) {
-                breakingNewsLiveData.postValue(Resource.Success(response.body()!!))
+                breakingNewsLiveData.value = (Resource.Success(response.body()!!))
             } else if (response.errorBody() != null) {
-                breakingNewsLiveData.postValue(Resource.Error(null, response.message()))
+                breakingNewsLiveData.value = (Resource.Error(null, response.message()))
             } else {
                 Toast.makeText(NewsApplication.appInstance,
                     "Something went wrong",
@@ -34,6 +35,8 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
                 breakingNewsLiveData.postValue(Resource.Error(null,""))
             }else {
                 breakingNewsLiveData.postValue(Resource.Error(null, ""))
+                Log.d("CheckingAditya",e.message.toString())
+
                 Toast.makeText(NewsApplication.appInstance,
                     "Something went wrong",
                     Toast.LENGTH_SHORT).show()

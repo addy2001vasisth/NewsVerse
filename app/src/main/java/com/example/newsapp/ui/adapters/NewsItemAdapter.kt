@@ -2,15 +2,15 @@ package com.example.newsapp.ui.adapters
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
-import android.webkit.WebView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.example.newsapp.R
+import com.example.newsapp.databinding.LayoutLoadingBinding
 import com.example.newsapp.databinding.LayoutNewsItemBinding
 import com.example.newsapp.models.Article
 import com.example.newsapp.ui.WebViewActivity
@@ -18,12 +18,14 @@ import com.example.newsapp.utils.Utils
 import javax.inject.Inject
 
 
-class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapter.NewsItemVH>() {
+class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private lateinit var binding: LayoutNewsItemBinding
+    private lateinit var bindingLoading : LayoutLoadingBinding
     private var list : MutableList<Article> = mutableListOf()
     private var activityContext: Context? = null
     private var adapterToFragCallback : AdapterToFragment ?= null
+    private lateinit var loaderHolder : NewsLoadingVH
 
     private val diffUtil = object : DiffUtil.ItemCallback<Article>() {
         override fun areContentsTheSame(oldItem: Article, newItem: Article):
@@ -36,7 +38,7 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
         }
     }
 
-    private val asyncListDiffer = AsyncListDiffer(this, diffUtil)
+     val asyncListDiffer = AsyncListDiffer(this, diffUtil)
 
 
     inner class NewsItemVH(itemView: LayoutNewsItemBinding) : RecyclerView.ViewHolder(itemView.root){
@@ -48,35 +50,70 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
         val archiveIc = itemView.archiveIc
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NewsItemVH {
-        binding = LayoutNewsItemBinding.inflate(LayoutInflater.from(parent.context),parent,false)
-        return NewsItemVH(binding)
+    inner class NewsLoadingVH(itemView: LayoutLoadingBinding): RecyclerView.ViewHolder(itemView.root){
+        val loader = itemView.root
     }
 
-    override fun onBindViewHolder(holder: NewsItemVH, position: Int) {
+    override fun getItemViewType(position: Int): Int {
+        return if(position == asyncListDiffer.currentList.size){
+            1
+        } else {
+            0;
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        binding = LayoutNewsItemBinding.inflate(LayoutInflater.from(parent.context),parent,false)
+        bindingLoading = LayoutLoadingBinding.inflate(LayoutInflater.from(parent.context),parent,false);
+
+        if(viewType == 0)
+            return NewsItemVH(binding)
+        else return NewsLoadingVH(bindingLoading)
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+
         if(position == asyncListDiffer.currentList.size-1){
             adapterToFragCallback?.lastItemReached()
         }
-        val article = asyncListDiffer.currentList[position]
         val mp = holder.itemView.layoutParams as MarginLayoutParams
         mp.topMargin = 18
-        holder.apply {
-            archiveIc.isVisible = article.isArchived
-            heading.text = article.title
-            desc.text = article.description
-            Utils.setImageUsingGlide(img,article.urlToImage ?:"")
-            dateTime.text = article.publishedAt
-            source.text = article.source?.name
-            itemView.setOnClickListener {
-                val intent = Intent(activityContext,WebViewActivity::class.java)
-                intent.putExtra("article",article)
-                activityContext?.startActivity(intent)
+
+        when(holder.itemViewType){
+            0 -> {
+                holder as NewsItemVH
+                val article = asyncListDiffer.currentList[position]
+
+                holder.apply {
+                    archiveIc.isVisible = article.isArchived
+                    heading.text = article.title
+                    desc.text = article.description
+                    Utils.setImageUsingGlide(img,article.urlToImage ?:"")
+                    dateTime.text = article.publishedAt
+                    source.text = article.source?.name
+                    itemView.setOnClickListener {
+                        val intent = Intent(activityContext,WebViewActivity::class.java)
+                        intent.putExtra("article",article)
+                        activityContext?.startActivity(intent)
+                    }
+                }
             }
+            1 -> {
+                holder as NewsLoadingVH
+                loaderHolder = holder
+                val params: ViewGroup.LayoutParams = holder.itemView.layoutParams
+                params.height = 130
+                holder.itemView.layoutParams = params
+
+            }
+
         }
+
     }
 
     override fun getItemCount(): Int {
-        return asyncListDiffer.currentList.size
+        if(asyncListDiffer.currentList.size == 0) return 0;
+        return asyncListDiffer.currentList.size+1
     }
 
     fun setContext(context: Context){
@@ -86,6 +123,12 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
     fun updateList(list: List<Article>){
         asyncListDiffer.submitList(list)
     }
+
+//    fun addList(list:List<Article>){
+//        this.list = asyncListDiffer.currentList
+//        this.list.addAll(list)
+//        a
+//    }
 
     fun getArticle(pos:Int): Article{
         return asyncListDiffer.currentList[pos]
@@ -106,6 +149,11 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<NewsItemAdapt
     fun settingUpAdapterToFragmentCallBack(callback: AdapterToFragment){
         adapterToFragCallback = callback
     }
+
+    fun hideOrShowListLoader(hide: Boolean){
+        loaderHolder.loader.isVisible = !hide
+    }
+
 
 }
 

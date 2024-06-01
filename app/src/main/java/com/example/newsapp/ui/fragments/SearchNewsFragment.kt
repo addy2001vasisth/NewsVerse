@@ -249,15 +249,6 @@ class SearchNewsFragment : Fragment() {
         return binding.root
     }
 
-    override fun onResume() {
-        super.onResume()
-        Handler().postDelayed({
-            inputBox.requestFocus()
-            val imm = activity!!.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
-            imm!!.showSoftInput(inputBox, InputMethodManager.SHOW_IMPLICIT)
-        },500)
-
-    }
 
 
 

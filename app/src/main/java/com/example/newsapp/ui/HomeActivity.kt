@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
@@ -29,6 +30,8 @@ class HomeActivity : AppCompatActivity() {
 
         val toolbar: Toolbar = binding.toolbar
         toolbar.setTitle(R.string.app_name)
+
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
 
         setSupportActionBar(toolbar)
