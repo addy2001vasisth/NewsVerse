@@ -17,5 +17,6 @@
     <style name="Theme.NewsApp.ToolBarTheme">
         <item name="fontFamily">@font/josefin_sans_bold</item>
         <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:iconTint">@color/white</item>
     </style>
 </resources>

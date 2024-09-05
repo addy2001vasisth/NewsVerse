@@ -20,9 +20,15 @@ import com.example.newsapp.R
 import com.example.newsapp.api.NewsRepository
 import com.example.newsapp.databinding.FragmentSavedNewsBinding
 import com.example.newsapp.databinding.LayoutLoadingBinding
+import com.example.newsapp.models.Article
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
+import com.example.newsapp.utils.Utils
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
@@ -37,6 +43,7 @@ class SavedNewsFragment : Fragment() {
     lateinit var newsRepository: NewsRepository
     @Inject
     lateinit var newsAdapter : NewsItemAdapter
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?,
@@ -54,8 +61,20 @@ class SavedNewsFragment : Fragment() {
         }
         newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner){
             it?.let {
-                newsAdapter.updateList(it)
+
+
+
+                var list = it.toMutableList()
+                list.add(Article(0,null,null,null,null,null,null,null,null))
+                newsAdapter.updateList(list)
                 newsAdapter.setContext(context!!)
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(2000)
+                        newsAdapter.hideOrShowListLoader(true)
+
+                }
+
             }
 
         }
@@ -74,8 +93,8 @@ class SavedNewsFragment : Fragment() {
             var deleteDrawable: Drawable =
                 BitmapDrawable(resources, Bitmap.createScaledBitmap(bitmap!!, 100, 100, true))
 
-            private val intrinsicWidth = deleteDrawable?.intrinsicWidth
-            private val intrinsicHeight = deleteDrawable?.intrinsicHeight
+            private val intrinsicWidth = deleteDrawable.intrinsicWidth!!
+            private val intrinsicHeight = deleteDrawable.intrinsicHeight!!
 
 
             override fun getMovementFlags(
@@ -109,6 +128,7 @@ class SavedNewsFragment : Fragment() {
                 actionState: Int,
                 isCurrentlyActive: Boolean,
             ) {
+
                 super.onChildDraw(c,
                     recyclerView,
                     viewHolder,
@@ -118,36 +138,29 @@ class SavedNewsFragment : Fragment() {
                     isCurrentlyActive)
                 val itemView = viewHolder.itemView
                 val itemHeight = itemView.height
-                val isCancelled = dX == 0f && !isCurrentlyActive
-                if (isCancelled) {
 
-                    c.drawRect(itemView.right+dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat(), mClearPaint)
+                val paint = Paint()
+                paint.color = context!!.getColor(R.color.red)
+                c.drawRoundRect(RectF(itemView.right+dX-100,itemView.top.toFloat(),itemView.right.toFloat(),itemView.bottom.toFloat()),
+                    Utils.dipToPixels(activity!!,10f),
+                    Utils.dipToPixels(activity!!,10f),paint)
 
-                    super.onChildDraw(c,
-                        recyclerView,
-                        viewHolder,
-                        dX,
-                        dY,
-                        actionState,
-                        isCurrentlyActive)
-                    return
-                }
-                mBackground.setColor(backgroundColor)
-                mBackground.setBounds(itemView.right + dX.toInt(),
-                    itemView.top,
-                    itemView.right,
-                    itemView.bottom)
-                mBackground.draw(c)
+                deleteDrawable.setTint(resources.getColor(R.color.white))
+
                 val deleteIconTop: Int = itemView.top + (itemHeight - intrinsicHeight!!) / 2
                 val deleteIconMargin: Int = (itemHeight - intrinsicHeight) / 2
-                val deleteIconLeft: Int = itemView.right - deleteIconMargin - intrinsicWidth!!
-                val deleteIconRight = itemView.right - deleteIconMargin
                 val deleteIconBottom: Int = deleteIconTop + intrinsicHeight
-                deleteDrawable?.setBounds(deleteIconLeft,
+
+
+                deleteDrawable.setBounds(
+                    itemView.right - ((intrinsicWidth.times(3)) /2) + (dX/5).toInt(),
                     deleteIconTop,
-                    deleteIconRight,
+                    itemView.right - (intrinsicWidth.div(2)) + (dX/5).toInt(),
                     deleteIconBottom)
-                deleteDrawable?.draw(c)
+
+                deleteDrawable.draw(c)
+
+
                 super.onChildDraw(c,
                     recyclerView,
                     viewHolder,
@@ -155,6 +168,7 @@ class SavedNewsFragment : Fragment() {
                     dY,
                     actionState,
                     isCurrentlyActive)
+
             }
 
 

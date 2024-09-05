@@ -1,20 +1,16 @@
 package com.example.newsapp.ui.fragments
 
-import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
@@ -31,6 +27,7 @@ import com.example.newsapp.ui.adapters.AdapterToFragment
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
 import com.example.newsapp.utils.Resource
+import com.example.newsapp.utils.Utils
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -47,6 +44,7 @@ class SearchNewsFragment : Fragment() {
     private lateinit var inputBox : EditText
     private var pageNum = 1
     private val articleMainList = mutableListOf<Article>()
+    private var localDbArrList = mutableListOf<Article>()
     @Inject
     lateinit var newsRepository: NewsRepository
     @Inject
@@ -61,12 +59,48 @@ class SearchNewsFragment : Fragment() {
         loadingLyt = binding.loadingLyt
         inputBox = binding.inputBox
 
-        recyclerView.adapter = newsAdapter
-        recyclerView.layoutManager = LinearLayoutManager(activity)
-
         val newsViewModel: NewsViewModel by viewModels {
             NewsViewModel.provideFactory(newsRepository)
         }
+
+        newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner) {
+            localDbArrList = it as MutableList<Article>
+            var deleteNewsItem = arrayListOf<Int>()
+
+            for((pos,item) in articleMainList.withIndex()){
+                if(item.isArchived){
+                    var doFound = false
+                    for(savedItem in localDbArrList){
+                        if(savedItem.title.equals(item.title)){
+                            doFound = true
+                        }
+                    }
+                    if(!doFound)
+                        deleteNewsItem.add(pos)
+                }
+            }
+
+            for(pos in deleteNewsItem){
+                newsAdapter.notifyItemChanged(pos)
+            }
+
+            for(article in articleMainList){
+                article.isArchived = false
+                for(savedArticle in localDbArrList){
+                    if(savedArticle.title.equals(article.title)){
+                        article.isArchived = true
+                    }
+                }
+            }
+
+
+            newsAdapter.updateList(articleMainList)
+        }
+
+        recyclerView.adapter = newsAdapter
+        recyclerView.layoutManager = LinearLayoutManager(activity)
+
+
 
 
         newsViewModel.newsFromSearchLiveData.observe(viewLifecycleOwner){
@@ -89,9 +123,19 @@ class SearchNewsFragment : Fragment() {
                         articleMainList.addAll(articleList)
                         newsAdapter.notifyDataSetChanged()
                         newsAdapter.updateList(articleMainList)
+
+
                     }
 
                     newsAdapter.setContext(context!!)
+
+                    CoroutineScope(Dispatchers.Main).launch {
+                        delay(2000)
+                        if(it.data!!.articles.isEmpty()){
+                            newsAdapter.hideOrShowListLoader(true)
+
+                        }
+                    }
                 }
                 is Resource.Error -> {
                     loadingLyt.root.visibility = View.GONE
@@ -125,11 +169,6 @@ class SearchNewsFragment : Fragment() {
 
 
         val swipeToDeleteCallBack = object : ItemTouchHelper.Callback() {
-            private val mClearPaint = Paint().apply {
-                xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-            }
-            private val mBackground: ColorDrawable = ColorDrawable()
-            private val backgroundColor = activity?.getColor(R.color.teal_700)
             private val deleteDrawableIc = ContextCompat.getDrawable(activity!!,
                 R.drawable.ic_archive)
 
@@ -148,6 +187,7 @@ class SearchNewsFragment : Fragment() {
                 return makeMovementFlags(0, ItemTouchHelper.LEFT)
             }
 
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -156,24 +196,43 @@ class SearchNewsFragment : Fragment() {
                 return false
             }
 
+
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.adapterPosition
                 var article = newsAdapter.getArticle(pos)
-                if(article.isArchived){
-                    Snackbar.make(view!!,"Item is already archived", Snackbar.LENGTH_SHORT).show()
-                    newsAdapter.deleteArticleFromList(pos)
-                    Handler().postDelayed({
-                        newsAdapter.setArticle(pos,article)
-                    },500)
+                if (article.isArchived) {
+                    Snackbar.make(view!!, getString(R.string.item_is_already_saved), Snackbar.LENGTH_SHORT).show()
+                    newsAdapter.notifyItemChanged(pos)
                     return
                 }
-                newsViewModel.upsertArticleToLocalDb(article)
+
                 article.isArchived = true
-                newsAdapter.deleteArticleFromList(pos)
-                Snackbar.make(view!!,"Selected Item has been archived..", Snackbar.LENGTH_SHORT).show()
+                newsViewModel.upsertArticleToLocalDb(article)
+
+                articleMainList[pos] = article
+
+                newsAdapter.updateList(articleMainList)
+                newsAdapter.notifyItemChanged(pos)
+
+
+                Snackbar.make(view!!, getString(R.string.selected_item_has_been_saved), Snackbar.LENGTH_SHORT)
+                    .setAction(getString(R.string.undo)){
+                        val article = localDbArrList[ localDbArrList.size-1]
+                        article.isArchived = false
+                        newsViewModel.deleteArticleFromLocalDb(article)
+                        Snackbar.make(view!!,getString(R.string.removed_from_saved_articles),Snackbar.LENGTH_SHORT).show()
+                        articleMainList[pos] = article
+                        newsAdapter.updateList(articleMainList)
+                        newsAdapter.notifyItemChanged(pos)
+
+
+                    }
+                    .show()
+
 
 
             }
+
 
             override fun onChildDraw(
                 c: Canvas,
@@ -193,41 +252,26 @@ class SearchNewsFragment : Fragment() {
                     isCurrentlyActive)
                 val itemView = viewHolder.itemView
                 val itemHeight = itemView.height
-                val isCancelled = dX == 0f && !isCurrentlyActive
-                if (isCancelled) {
 
-                    c.drawRect(itemView.right + dX,
-                        itemView.top.toFloat(),
-                        itemView.right.toFloat(),
-                        itemView.bottom.toFloat(),
-                        mClearPaint)
+                val paint = Paint()
+                paint.color = context!!.getColor(R.color.teal_700)
+                c.drawRoundRect(RectF(itemView.right+dX-100,itemView.top.toFloat(),itemView.right.toFloat(),itemView.bottom.toFloat()),
+                    Utils.dipToPixels(activity!!,10f),
+                    Utils.dipToPixels(activity!!,10f),paint)
 
-                    super.onChildDraw(c,
-                        recyclerView,
-                        viewHolder,
-                        dX,
-                        dY,
-                        actionState,
-                        isCurrentlyActive)
-                    return
-                }
-                mBackground.color = backgroundColor!!
-                mBackground.setBounds(itemView.right + dX.toInt(),
-                    itemView.top,
-                    itemView.right,
-                    itemView.bottom)
-                mBackground.draw(c)
                 deleteDrawable.setTint(resources.getColor(R.color.white))
 
                 val deleteIconTop: Int = itemView.top + (itemHeight - intrinsicHeight) / 2
                 val deleteIconMargin: Int = (itemHeight - intrinsicHeight) / 2
-                val deleteIconLeft: Int = itemView.right - deleteIconMargin - intrinsicWidth
-                val deleteIconRight = itemView.right - deleteIconMargin
                 val deleteIconBottom: Int = deleteIconTop + intrinsicHeight
-                deleteDrawable.setBounds(deleteIconLeft,
+
+
+                deleteDrawable.setBounds(
+                    itemView.right - (intrinsicWidth*3/2) + (dX/5).toInt(),
                     deleteIconTop,
-                    deleteIconRight,
+                    itemView.right - (intrinsicWidth/2) + (dX/5).toInt(),
                     deleteIconBottom)
+
                 deleteDrawable.draw(c)
 
 

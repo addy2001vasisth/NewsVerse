@@ -19,4 +19,5 @@
     <color name="toolBarHeadingColor">@color/dark_blue</color>
 
     <color name="background">#fff</color>
+    <color name="divider">#807A7A</color>
 </resources>

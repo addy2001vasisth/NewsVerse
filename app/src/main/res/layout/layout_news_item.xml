@@ -32,7 +32,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:layout_marginRight="8dp"
+        android:layout_marginEnd="8dp"
         android:fontFamily="@font/josefin_sans_light_italics"
         app:layout_constraintBottom_toTopOf="@id/archiveIc"
         app:layout_constraintRight_toRightOf="parent"
@@ -47,7 +47,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         android:visibility="gone"
-        android:layout_marginRight="8dp"
+        android:layout_marginEnd="8dp"
         android:src="@drawable/ic_archive"
         app:tint="@color/text_color" />
 

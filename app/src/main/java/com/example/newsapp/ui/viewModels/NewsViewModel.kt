@@ -1,10 +1,10 @@
 package com.example.newsapp.ui.viewModels
 
 import android.util.Log
-import android.widget.MultiAutoCompleteTextView
 import android.widget.Toast
 import androidx.lifecycle.*
 import com.example.newsapp.NewsApplication
+import com.example.newsapp.R
 import com.example.newsapp.api.NewsRepository
 import com.example.newsapp.models.Article
 import com.example.newsapp.models.NewsResponse
@@ -23,10 +23,10 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
             if (response.isSuccessful && response.body() != null && response.errorBody() == null) {
                 breakingNewsLiveData.value = (Resource.Success(response.body()!!))
             } else if (response.errorBody() != null) {
-                breakingNewsLiveData.value = (Resource.Error(null, response.message()))
+                breakingNewsLiveData.value = (Resource.Error(null, response.body()?.status?:""))
             } else {
                 Toast.makeText(NewsApplication.appInstance,
-                    "Something went wrong",
+                    response.message(),
                     Toast.LENGTH_SHORT).show()
             }
         } catch(e:java.lang.Exception){
@@ -35,10 +35,9 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
                 breakingNewsLiveData.postValue(Resource.Error(null,""))
             }else {
                 breakingNewsLiveData.postValue(Resource.Error(null, ""))
-                Log.d("CheckingAditya",e.message.toString())
 
                 Toast.makeText(NewsApplication.appInstance,
-                    "Something went wrong",
+                    NewsApplication.appInstance!!.getString(R.string.something_went_wrong),
                     Toast.LENGTH_SHORT).show()
             }
         }
@@ -56,7 +55,7 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
                 newsFromSearchLiveData.postValue(Resource.Error(null, response.message()))
             } else {
                 Toast.makeText(NewsApplication.appInstance,
-                    "Something went wrong",
+                    response.message(),
                     Toast.LENGTH_SHORT).show()
             }
         } catch (e:java.lang.Exception){
@@ -66,7 +65,7 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
             }else {
                 newsFromSearchLiveData.postValue(Resource.Error(null,""))
                 Toast.makeText(NewsApplication.appInstance,
-                    "Something went wrong",
+                    NewsApplication.appInstance!!.getString(R.string.something_went_wrong),
                     Toast.LENGTH_SHORT).show()
             }
         }
@@ -84,7 +83,7 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
 
 
     private fun showNoNetworkToast(){
-        Toast.makeText(NewsApplication.appInstance,"No Internet Connection",Toast.LENGTH_SHORT).show()
+        Toast.makeText(NewsApplication.appInstance,NewsApplication.appInstance!!.getString(R.string.no_internet_connection),Toast.LENGTH_SHORT).show()
     }
 
     companion object {

@@ -2,6 +2,7 @@ package com.example.newsapp.ui.adapters
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
@@ -9,7 +10,6 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import com.example.newsapp.R
 import com.example.newsapp.databinding.LayoutLoadingBinding
 import com.example.newsapp.databinding.LayoutNewsItemBinding
 import com.example.newsapp.models.Article
@@ -55,7 +55,7 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if(position == asyncListDiffer.currentList.size){
+        return if(position == asyncListDiffer.currentList.size-1){
             1
         } else {
             0;
@@ -66,9 +66,13 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.
         binding = LayoutNewsItemBinding.inflate(LayoutInflater.from(parent.context),parent,false)
         bindingLoading = LayoutLoadingBinding.inflate(LayoutInflater.from(parent.context),parent,false);
 
-        if(viewType == 0)
+        if(viewType == 0) {
             return NewsItemVH(binding)
-        else return NewsLoadingVH(bindingLoading)
+        } else if(viewType == 1) {
+            return NewsLoadingVH(bindingLoading)
+        }
+
+        return NewsItemVH(binding)
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -99,11 +103,11 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.
                 }
             }
             1 -> {
-                holder as NewsLoadingVH
-                loaderHolder = holder
+                loaderHolder = holder as NewsLoadingVH
                 val params: ViewGroup.LayoutParams = holder.itemView.layoutParams
                 params.height = 130
                 holder.itemView.layoutParams = params
+
 
             }
 
@@ -112,8 +116,7 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.
     }
 
     override fun getItemCount(): Int {
-        if(asyncListDiffer.currentList.size == 0) return 0;
-        return asyncListDiffer.currentList.size+1
+        return asyncListDiffer.currentList.size
     }
 
     fun setContext(context: Context){
@@ -134,9 +137,15 @@ class NewsItemAdapter @Inject constructor() : RecyclerView.Adapter<RecyclerView.
         return asyncListDiffer.currentList[pos]
     }
 
-    fun setArticle(pos:Int, article: Article){
+    fun insertArticle(pos:Int, article: Article){
         list = asyncListDiffer.currentList.toMutableList()
         list.add(pos,article)
+        updateList(list)
+    }
+
+    fun updateArticle(pos:Int, article: Article){
+        list = asyncListDiffer.currentList.toMutableList()
+        list[pos] = article
         updateList(list)
     }
 

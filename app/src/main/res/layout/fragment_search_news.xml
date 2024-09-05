@@ -13,7 +13,7 @@
         android:id="@+id/inputBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Search..."
+        android:hint="@string/hint_search"
         android:background="@drawable/rounded_corners_with_borders"
         android:padding="16dp"
         app:layout_constraintLeft_toLeftOf="parent"

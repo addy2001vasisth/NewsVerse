@@ -3,24 +3,18 @@ package com.example.newsapp.ui.fragments
 import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
-import android.view.Display
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.TranslateAnimation
-import android.widget.Adapter
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -29,6 +23,7 @@ import com.example.newsapp.api.NewsRepository
 import com.example.newsapp.databinding.FragmentBreakingNewsFragmentsBinding
 import com.example.newsapp.databinding.LayoutLoadingBinding
 import com.example.newsapp.models.Article
+import com.example.newsapp.models.NewsResponse
 import com.example.newsapp.ui.adapters.AdapterToFragment
 import com.example.newsapp.ui.adapters.NewsItemAdapter
 import com.example.newsapp.ui.viewModels.NewsViewModel
@@ -36,7 +31,6 @@ import com.example.newsapp.utils.Resource
 import com.example.newsapp.utils.Utils
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
-import java.lang.Math.abs
 import javax.inject.Inject
 
 
@@ -55,6 +49,8 @@ class BreakingNewsFragment : Fragment() {
 
     @Inject
     lateinit var newsAdapter: NewsItemAdapter
+
+    private val pageNumVsArticlesMap  = hashMapOf<Int,List<Article>>()
 
     val newsViewModel: NewsViewModel by viewModels {
         NewsViewModel.provideFactory(newsRepository)
@@ -79,11 +75,40 @@ class BreakingNewsFragment : Fragment() {
 
         newsViewModel.getAllSavedArticleFromLocalDb().observe(viewLifecycleOwner) {
             localDbArrList = it as MutableList<Article>
+            var deleteNewsItem = arrayListOf<Int>()
 
+            for((pos,item) in listOfArticles.withIndex()){
+                if(item.isArchived){
+                    var doFound = false
+                    for(savedItem in localDbArrList){
+                        if(savedItem.title.equals(item.title)){
+                            doFound = true
+                        }
+                    }
+                    if(!doFound)
+                        deleteNewsItem.add(pos)
+                }
+            }
+
+            for(pos in deleteNewsItem){
+                newsAdapter.notifyItemChanged(pos)
+            }
+
+            for(article in listOfArticles){
+                article.isArchived = false
+                for(savedArticle in localDbArrList){
+                        if(savedArticle.title.equals(article.title)){
+                            article.isArchived = true
+                        }
+                }
+            }
+
+
+            newsAdapter.updateList(listOfArticles)
         }
 
 
-        newsAdapter.updateList(listOfArticles)
+
 
 
         newsViewModel.breakingNewsLiveData.observe(viewLifecycleOwner) {
@@ -92,12 +117,39 @@ class BreakingNewsFragment : Fragment() {
 
                     loadingLyt.root.visibility = View.GONE
                     var articleList = it.data!!.articles
-                    if(articleList.isEmpty()){
-                        newsAdapter.hideOrShowListLoader(true)
+                    this.listOfArticles.clear()
+
+                    for(article in articleList){
+                        for(savedArticle in localDbArrList){
+                            if(!article.isArchived){
+                                if(savedArticle.title.equals(article.title)){
+                                    article.isArchived = true
+                                }
+                            }
+                        }
                     }
 
+                    pageNumVsArticlesMap[pageNum] = articleList
+
+
+                    for((key,value) in pageNumVsArticlesMap){
+                        listOfArticles.addAll(value)
+                    }
+                    if(articleList.isEmpty()){
+                        newsAdapter.hideOrShowListLoader(true)
+                        pageNum--
+
+                    }
+
+
+
+
+
                     var oldsize = listOfArticles.size
-                    listOfArticles.addAll(articleList)
+                    if(listOfArticles.size != 0){
+                        listOfArticles.add(Article(0,null,null,null,null,null,null,null,null))
+                    }
+
                     newsAdapter.updateList(listOfArticles)
                     newsAdapter.notifyItemRangeInserted(oldsize,articleList.size)
                     newsAdapter.setContext(context!!)
@@ -106,6 +158,7 @@ class BreakingNewsFragment : Fragment() {
                 }
                 is Resource.Error -> {
                     loadingLyt.root.visibility = View.GONE
+                    Toast.makeText(activity!!, it.message.toString(), Toast.LENGTH_SHORT).show()
                 }
                 is Resource.Loading -> {
                     if (pageNum < 2) {
@@ -122,7 +175,6 @@ class BreakingNewsFragment : Fragment() {
             }
 
         })
-        var rightMostCoord = -1;
 
         val swipeToDeleteCallBack = object : ItemTouchHelper.Callback() {
             private val deleteDrawableIc = ContextCompat.getDrawable(activity!!,
@@ -143,6 +195,7 @@ class BreakingNewsFragment : Fragment() {
                 return makeMovementFlags(0, ItemTouchHelper.LEFT)
             }
 
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -151,28 +204,44 @@ class BreakingNewsFragment : Fragment() {
                 return false
             }
 
+
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.adapterPosition
                 var article = newsAdapter.getArticle(pos)
                 if (article.isArchived) {
-                    Snackbar.make(view!!, "Item is already archived", Snackbar.LENGTH_SHORT).show()
-                    newsAdapter.deleteArticleFromList(pos)
-                    Handler().postDelayed({
-                        newsAdapter.setArticle(pos, article)
-                    }, 500)
+                    Snackbar.make(view!!, getString(R.string.item_is_already_saved), Snackbar.LENGTH_SHORT).show()
+                    newsAdapter.notifyItemChanged(pos)
                     return
                 }
-                newsViewModel.upsertArticleToLocalDb(article)
+
                 article.isArchived = true
-                newsAdapter.deleteArticleFromList(pos)
-                Handler().postDelayed({
-                    newsAdapter.setArticle(pos, article)
-                },1000)
-                    Snackbar.make(view!!, "Selected Item has been archived..", Snackbar.LENGTH_SHORT)
+                newsViewModel.upsertArticleToLocalDb(article)
+
+                listOfArticles[pos] = article
+
+                newsAdapter.updateList(listOfArticles)
+                newsAdapter.notifyItemChanged(pos)
+
+
+                Snackbar.make(view!!, getString(R.string.selected_item_has_been_saved), Snackbar.LENGTH_SHORT)
+                    .setAction(getString(R.string.undo)){
+                        val article = localDbArrList[ localDbArrList.size-1]
+                        article.isArchived = false
+                        newsViewModel.deleteArticleFromLocalDb(article)
+                        Snackbar.make(view!!,getString(R.string.removed_from_saved_articles),Snackbar.LENGTH_SHORT).show()
+                        listOfArticles[pos] = article
+                        newsAdapter.updateList(listOfArticles)
+                        newsAdapter.notifyItemChanged(pos)
+
+
+                    }
                     .show()
 
 
+
             }
+
+
             override fun onChildDraw(
                 c: Canvas,
                 recyclerView: RecyclerView,
@@ -202,15 +271,11 @@ class BreakingNewsFragment : Fragment() {
                 val deleteIconMargin: Int = (itemHeight - intrinsicHeight) / 2
                 val deleteIconBottom: Int = deleteIconTop + intrinsicHeight
 
-                deleteDrawable.setBounds(if (kotlin.math.abs(dX) < itemView.width / 2.5) {
-                    rightMostCoord = (dX/1.5).toInt()
-                    itemView.right + (dX / 1.5).toInt()
 
-                } else {
-                    itemView.right + rightMostCoord
-                },
+                deleteDrawable.setBounds(
+                    itemView.right - (intrinsicWidth*3/2) + (dX/5).toInt(),
                     deleteIconTop,
-                    itemView.right - deleteIconMargin / 2,
+                    itemView.right - (intrinsicWidth/2) + (dX/5).toInt(),
                     deleteIconBottom)
 
                 deleteDrawable.draw(c)
@@ -233,11 +298,5 @@ class BreakingNewsFragment : Fragment() {
 
         return binding.root
     }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        newsViewModel.breakingNewsLiveData.value = null
-    }
-
 
 }

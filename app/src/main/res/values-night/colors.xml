@@ -4,4 +4,5 @@
     <color name="background">#000</color>
     <color name="toolBarBgColor">@color/dark_blue</color>
     <color name="toolBarHeadingColor">@color/white</color>
+    <color name="divider">#fff</color>
 </resources>

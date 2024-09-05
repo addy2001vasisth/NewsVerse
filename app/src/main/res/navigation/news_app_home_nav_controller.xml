@@ -12,11 +12,12 @@
         tools:layout="@layout/fragment_breaking_news_fragments" >
         <action
             android:id="@+id/action_breakingNewsFragments_to_newsArticleFragment"
-            app:destination="@id/newsArticleFragment"
-            app:enterAnim="@anim/slide_down_to_up"
-            app:exitAnim="@anim/slide_up_to_down"
-            app:popEnterAnim="@anim/slide_down_to_up"
-            app:popExitAnim="@anim/slide_up_to_down"/>
+            app:destination="@id/newsArticleFragment"/>
+<!--            app:enterAnim="@anim/slide_down_to_up"-->
+<!--            app:exitAnim="@anim/slide_up_to_down"-->
+<!--            app:popEnterAnim="@anim/slide_down_to_up"-->
+<!--            app:popExitAnim="@anim/slide_up_to_down"/>-->
+        >
     </fragment>
     <fragment
         android:id="@+id/newsArticleFragment"
